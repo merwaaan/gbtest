@@ -1,0 +1,3 @@
+[submodule "tools/visualboyadvance-m"]
+	path = tools/visualboyadvance-m
+	url = https://github.com/merwaaan/visualboyadvance-m.git
