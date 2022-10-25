@@ -14,6 +14,7 @@ pub struct Server {
 }
 
 impl Server {
+    // TODO merge new/start
     pub fn new() -> Self {
         Server {
             connection_thread_handle: Option::None,

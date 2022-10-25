@@ -12,7 +12,7 @@ fn main() {
 
     loop {
         server.update();
-        thread::sleep(Duration::from_secs(1));
+        thread::sleep(Duration::from_millis(1000));
     }
 
     server.stop();

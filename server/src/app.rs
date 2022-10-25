@@ -8,12 +8,13 @@ pub trait App {
 //
 
 pub struct TestApp {
-    n: u8,
+    x: u8,
+    y: u8,
 }
 
 impl TestApp {
     pub fn new() -> Self {
-        Self { n: 0 }
+        Self { x: 0, y: 0 }
     }
 }
 
@@ -21,10 +22,15 @@ impl App for TestApp {
     fn update(&mut self, clients: &mut Vec<Client>) {
         println!("update");
 
-        self.n += 1;
+        self.x = self.x.wrapping_add(1);
+
+        if self.x > 159 {
+            self.x = 0;
+            self.y = self.y.wrapping_add(1);
+        }
 
         for client in clients {
-            client.buffer_command(Command::DrawCircle(self.n, 10, 3));
+            client.buffer_command(Command::DrawPoint(self.x, self.y));
         }
     }
 }

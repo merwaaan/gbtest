@@ -3,19 +3,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define COMM_ADDRESS 0x70
-#define COMMAND_BYTE 0x45
+#define COMM_IO_OFFSET 0x70
 
 void send(uint8_t value)
 {
     //printf("sending %d\n", value);
 
-    _IO[COMM_ADDRESS] = value;
+    _IO[COMM_IO_OFFSET] = value;
 }
 
 uint8_t receive()
 {
-    uint8_t value = _IO[COMM_ADDRESS];
+    uint8_t value = _IO[COMM_IO_OFFSET];
 
     //printf("received %d\n", value);
 
@@ -25,6 +24,7 @@ uint8_t receive()
 enum Command
 {
   Print = 0,
+  DrawPoint,
   DrawLine,
   DrawCircle,
 };
@@ -47,6 +47,15 @@ void command_print()
   gprint(text);
 }
 
+void command_draw_point()
+{
+  uint8_t x = receive();
+  uint8_t y = receive();
+
+  color(BLACK, WHITE, SOLID);
+  plot_point(x, y);
+}
+
 void command_draw_line()
 {
   uint8_t x1 = receive();
@@ -63,9 +72,9 @@ void command_draw_circle()
   uint8_t y = receive();
   uint8_t r = receive();
 
-  color(LTGREY, WHITE, SOLID);
-  circle(x, y, r, M_FILL);
-  //plot_point(x, y);
+  color(BLACK, WHITE, SOLID);
+  //circle(x, y, r, M_FILL);
+  plot_point(x, y);
 }
 
 void wait(int frames)
@@ -83,30 +92,22 @@ void send_inputs()
 
 void receive_commands()
 {
-  uint8_t byte = receive();
+  uint8_t command_count = receive();
 
-  if (byte == COMMAND_BYTE)
+  for (uint8_t i = 0; i < command_count; ++i)
   {
-    uint8_t command_count = receive();
+    uint8_t command_id = receive();
 
-    for (uint8_t i = 0; i < command_count; ++i)
+    switch (command_id)
     {
-      uint8_t command_id = receive();
+      case Print: command_print(); break;
+      case DrawPoint: command_draw_point(); break;
+      case DrawLine: command_draw_line(); break;
+      case DrawCircle: command_draw_circle(); break;
 
-      switch (command_id)
-      {
-        case Print: command_print(); break;
-        case DrawLine: command_draw_line(); break;
-        case DrawCircle: command_draw_circle(); break;
-
-        default:
-          printf("unknown command id: %d\n", command_id);
-      }
+      default:
+        printf("unknown command id: %d\n", command_id);
     }
-  }
-  else
-  {
-    printf("invalid byte: %d\n", byte);
   }
 }
 
@@ -114,7 +115,8 @@ void main()
 {
   while (1)
   {
-    //send_inputs();
+    send_inputs();
     receive_commands();
+    wait_vbl_done();
   }
 }
