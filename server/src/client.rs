@@ -1,4 +1,5 @@
-use crate::commands::Command;
+use crate::ServerCommand;
+use crate::commands::ClientCommand;
 use std::io::{self, Read};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
@@ -18,10 +19,11 @@ pub enum Button {
 pub struct Client {
     id: String,
 
+    screen: (f64, f64, f64, f64), // x, y, w, h -- 0 0 14.8 9
+    
     thread: JoinHandle<()>,
-    //stream: TcpStream,
-    unstaged_commands: Vec<Command>,
-    staged_commands: Arc<Mutex<Vec<Command>>>,
+    unstaged_commands: Vec<ClientCommand>,
+    staged_commands: Arc<Mutex<Vec<ClientCommand>>>,
 
     // Bits: Start Select B A Down Up Left Right
     inputs: u8,
@@ -38,7 +40,7 @@ impl Client {
             {
                 // Send commands
 
-                let commands: MutexGuard<Vec<Command>> = concurrent_commands.lock().unwrap();
+                let commands: MutexGuard<Vec<ClientCommand>> = concurrent_commands.lock().unwrap();
 
                 println!("Sending {} commands", commands.len());
 
@@ -79,8 +81,8 @@ impl Client {
 
         Self {
             id,
+            screen: (0.0, 0.0, 14.8, 9.0),
             thread,
-            //stream,
             unstaged_commands: Vec::new(),
             staged_commands: staged_command_buffer,
             inputs: 0,
@@ -91,17 +93,29 @@ impl Client {
         &self.id
     }
 
-    pub fn buffer_command(&mut self, command: Command) {
+    pub fn buffer_command(&mut self, command: ClientCommand) {
         self.unstaged_commands.push(command);
     }
 
     pub fn send_commands(&mut self) {
-        let mut staged_commands: MutexGuard<Vec<Command>> = self.staged_commands.lock().unwrap();
+        let mut staged_commands: MutexGuard<Vec<ClientCommand>> = self.staged_commands.lock().unwrap();
 
         for unstaged_command in self.unstaged_commands.iter_mut() {
             println!("Staging command: {:?}", unstaged_command);
 
             staged_commands.push(unstaged_command.clone());
+        }
+    }
+    
+    pub fn process_server_command(&mut self, command: &ServerCommand) {               
+        match command {
+            ServerCommand::Pos { client_id, x, y } => {
+                println!("client {}: pos to {} {}", self.id, x, y);
+                self.screen.0 = *x;
+                self.screen.1 = *y;
+            }
+            
+            _ => {}
         }
     }
 

@@ -1,5 +1,6 @@
 use crate::app::TestApp;
 use crate::{app::App, client::Client};
+use crate::ServerCommand;
 use std::io;
 use std::sync::mpsc::{Sender, TryRecvError};
 use std::sync::{mpsc, Arc, Mutex};
@@ -7,21 +8,27 @@ use std::thread::{self, JoinHandle};
 use std::{net::TcpListener, vec::Vec};
 
 pub struct Server {
+    running: bool,
     connection_thread_handle: Option<JoinHandle<()>>,
     connection_thread_channel: Option<Sender<u8>>,
     clients: Arc<Mutex<Vec<Client>>>,
-    game: TestApp,
+    app: TestApp,
 }
 
 impl Server {
     // TODO merge new/start
     pub fn new() -> Self {
         Server {
+            running: false,
             connection_thread_handle: Option::None,
             connection_thread_channel: Option::None,
             clients: Arc::new(Mutex::new(Vec::new())),
-            game: TestApp::new(),
+            app: TestApp::new(),
         }
+    }
+
+    pub fn is_running(&self) -> bool {
+        self.running
     }
 
     pub fn start(&mut self, address: &str) {
@@ -67,9 +74,11 @@ impl Server {
                 }
             }
         }));
+
+        self.running = true;
     }
 
-    pub fn stop(&mut self) {
+    /*pub fn stop(&mut self) {
         println!("Stopping server");
 
         // TODO error handling
@@ -85,13 +94,34 @@ impl Server {
             .unwrap()
             .join()
             .unwrap();
-    }
+    }*/
 
     pub fn update(&mut self) {
-        self.game.update(&mut self.clients.lock().unwrap());
+        self.app.update(&mut self.clients.lock().unwrap());
 
         for client in self.clients.lock().unwrap().iter_mut() {
             client.send_commands();
         }
+    }
+
+    pub fn process_command(&mut self, command: &ServerCommand) {               
+        match command {
+            ServerCommand::Quit => {
+                println!("stopping server");
+                self.running = false;
+            }
+        
+            _ => {}
+        }
+
+        // Forward to the clients
+        
+        for client in self.clients.lock().unwrap().iter_mut() {
+            client.process_server_command(command);
+        }
+
+        // Forward to the app
+
+        self.app.process_server_command(command);
     }
 }

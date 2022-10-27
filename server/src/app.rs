@@ -1,8 +1,10 @@
 use crate::client::Client;
-use crate::commands::Command;
+use crate::ServerCommand;
+use crate::commands::ClientCommand;
 
 pub trait App {
     fn update(&mut self, clients: &mut Vec<Client>);
+    fn process_server_command(&mut self, command: &ServerCommand);
 }
 
 //
@@ -20,8 +22,6 @@ impl TestApp {
 
 impl App for TestApp {
     fn update(&mut self, clients: &mut Vec<Client>) {
-        println!("update");
-
         self.x = self.x.wrapping_add(1);
 
         if self.x > 159 {
@@ -30,7 +30,10 @@ impl App for TestApp {
         }
 
         for client in clients {
-            client.buffer_command(Command::DrawPoint(self.x, self.y));
+            client.buffer_command(ClientCommand::DrawPoint(self.x, self.y));
         }
+    }
+    
+    fn process_server_command(&mut self, command: &ServerCommand) {               
     }
 }
