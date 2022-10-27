@@ -1,5 +1,4 @@
-use crate::app::TestApp;
-use crate::{app::App, client::Client};
+use crate::{apps::{app::App, bouncing_balls::BouncingBallsApp}, client::Client};
 use crate::ServerCommand;
 use std::io;
 use std::sync::mpsc::{Sender, TryRecvError};
@@ -12,7 +11,7 @@ pub struct Server {
     connection_thread_handle: Option<JoinHandle<()>>,
     connection_thread_channel: Option<Sender<u8>>,
     clients: Arc<Mutex<Vec<Client>>>,
-    app: TestApp,
+    app: BouncingBallsApp,
 }
 
 impl Server {
@@ -23,7 +22,7 @@ impl Server {
             connection_thread_handle: Option::None,
             connection_thread_channel: Option::None,
             clients: Arc::new(Mutex::new(Vec::new())),
-            app: TestApp::new(),
+            app: BouncingBallsApp::new(),
         }
     }
 

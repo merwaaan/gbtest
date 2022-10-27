@@ -2,7 +2,7 @@ use std::{thread, io, time::Duration, sync::mpsc};
 
 use clap::Parser;
 
-mod app;
+mod apps;
 mod client;
 mod commands;
 mod server;
@@ -18,8 +18,8 @@ pub enum ServerCommand {  // TODO alias subcommands?
     Quit,
     Pos {
         client_id: u8,
-        x: f64,
-        y: f64
+        x: f32,
+        y: f32
     }
 }
 

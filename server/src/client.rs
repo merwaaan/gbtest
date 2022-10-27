@@ -19,7 +19,7 @@ pub enum Button {
 pub struct Client {
     id: String,
 
-    screen: (f64, f64, f64, f64), // x, y, w, h -- 0 0 14.8 9
+    screen: (f32, f32, f32, f32), // x, y, w, h -- 0 0 14.8 9
     
     thread: JoinHandle<()>,
     unstaged_commands: Vec<ClientCommand>,
@@ -93,6 +93,10 @@ impl Client {
         &self.id
     }
 
+    pub fn screen(&self) -> &(f32, f32, f32, f32) {
+        &self.screen
+    }
+
     pub fn buffer_command(&mut self, command: ClientCommand) {
         self.unstaged_commands.push(command);
     }
@@ -114,7 +118,7 @@ impl Client {
                 self.screen.0 = *x;
                 self.screen.1 = *y;
             }
-            
+
             _ => {}
         }
     }
