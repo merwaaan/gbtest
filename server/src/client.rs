@@ -1,7 +1,6 @@
 use parry2d::bounding_volume::AABB;
 use parry2d::math::{Point, Vector};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::commands::ClientCommand;
 use crate::ServerCommand;
@@ -56,7 +55,7 @@ pub struct Client {
     staged_commands: Arc<Mutex<Vec<ClientCommand>>>,
 
     // Bits: Start Select B A Down Up Left Right
-    inputs: u8,
+    inputs: Arc<Mutex<u8>>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -104,6 +103,9 @@ impl Client {
         let concurrent_staged_commands = Arc::new(Mutex::new(Vec::new()));
         let staged_commands = concurrent_staged_commands.clone();
 
+        let concurrent_inputs = Arc::new(Mutex::new(0u8));
+        let inputs = concurrent_inputs.clone();
+
         let thread = thread::spawn(move || {
             loop {
                 {
@@ -115,7 +117,7 @@ impl Client {
                     stream.write(&[commands.len() as u8]).unwrap();
 
                     for command in commands.iter() {
-                        println!("Sending command: {:?}", command);
+                        //println!("Sending command: {:?}", command);
 
                         let data = command.to_bytes();
                         stream.write(&data).unwrap();
@@ -128,21 +130,18 @@ impl Client {
 
                 let mut received_data = [0u8];
 
-                match stream.read(&mut received_data) {
-                    Ok(n) => {
-                        println!("Received {} bytes", n);
-                        n
-                    }
+                *concurrent_inputs.lock().unwrap() = match stream.read(&mut received_data) {
+                    Ok(n) => received_data[0],
                     Err(e) => {
                         if e.kind() != io::ErrorKind::WouldBlock {
-                            println!("Error: {}", e);
+                            println!("Client error: {}", e);
                         }
 
                         0
                     }
                 };
 
-                thread::sleep(Duration::from_millis(1000));
+                thread::sleep(Duration::from_millis(100));
             }
         });
 
@@ -152,7 +151,7 @@ impl Client {
             thread,
             unstaged_commands: Vec::new(),
             staged_commands,
-            inputs: 0,
+            inputs,
         }
     }
 
@@ -173,7 +172,7 @@ impl Client {
             self.staged_commands.lock().unwrap();
 
         for unstaged_command in self.unstaged_commands.iter() {
-            println!("Staging command: {:?}", unstaged_command);
+            //println!("Staging command: {:?}", unstaged_command);
 
             concurrent_staged_commands.push(unstaged_command.clone());
         }
@@ -209,15 +208,17 @@ impl Client {
     }
 
     pub fn button_pressed(&self, button: Button) -> bool {
+        let concurrent_inputs = self.inputs.lock().unwrap();
+
         match button {
-            Button::Start => (self.inputs & 0x80) != 0,
-            Button::Select => (self.inputs & 0x40) != 0,
-            Button::B => (self.inputs & 0x20) != 0,
-            Button::A => (self.inputs & 0x10) != 0,
-            Button::Down => (self.inputs & 0x08) != 0,
-            Button::Up => (self.inputs & 0x04) != 0,
-            Button::Left => (self.inputs & 0x02) != 0,
-            Button::Right => (self.inputs & 0x01) != 0,
+            Button::Start => (*concurrent_inputs & 0x80) != 0,
+            Button::Select => (*concurrent_inputs & 0x40) != 0,
+            Button::B => (*concurrent_inputs & 0x20) != 0,
+            Button::A => (*concurrent_inputs & 0x10) != 0,
+            Button::Down => (*concurrent_inputs & 0x08) != 0,
+            Button::Up => (*concurrent_inputs & 0x04) != 0,
+            Button::Left => (*concurrent_inputs & 0x02) != 0,
+            Button::Right => (*concurrent_inputs & 0x01) != 0,
         }
     }
 }

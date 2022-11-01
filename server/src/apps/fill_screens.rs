@@ -5,14 +5,19 @@ use crate::apps::App;
 use crate::client::{Button, Client};
 use crate::commands::ClientCommand;
 
+struct ClientInfo {
+    pixel: usize,
+    speed: u8,
+}
+
 pub struct FillScreensApp {
-    pixels: HashMap<u8, usize>,
+    clients_info: HashMap<u8, ClientInfo>,
 }
 
 impl FillScreensApp {
     pub fn new() -> Self {
         Self {
-            pixels: HashMap::new(),
+            clients_info: HashMap::new(),
         }
     }
 }
@@ -22,32 +27,39 @@ impl App for FillScreensApp {
         for client in clients.iter_mut() {
             // Initialize new clients
 
-            if !self.pixels.contains_key(&client.id()) {
-                self.pixels.insert(client.id(), 0);
+            if !self.clients_info.contains_key(&client.id()) {
+                self.clients_info.insert(
+                    client.id(),
+                    ClientInfo {
+                        pixel: 0,
+                        speed: 20,
+                    },
+                );
 
                 client.buffer_command(ClientCommand::ClearScreen);
             }
 
+            let client_info = self.clients_info.get_mut(&client.id()).unwrap();
+
             // Press Start: clear
 
             if client.button_pressed(Button::Start) {
-                *self.pixels.get_mut(&client.id()).unwrap() = 0;
-
+                client_info.pixel = 0;
                 client.buffer_command(ClientCommand::ClearScreen);
             }
 
             // Fill one pixels
 
-            let pixel = self.pixels.get_mut(&client.id()).unwrap();
+            for _ in 0..client_info.speed {
+                if client_info.pixel < 160 * 144 {
+                    // TODO generalize res
+                    client_info.pixel += 1;
 
-            if *pixel < 160 * 144 {
-                // TODO generalize res
-                *pixel += 1;
+                    let x = (client_info.pixel % 160) as u8;
+                    let y = (client_info.pixel / 160) as u8;
 
-                let x = (*pixel % 144) as u8;
-                let y = (*pixel / 160) as u8;
-
-                client.buffer_command(ClientCommand::DrawPoint(x, y));
+                    client.buffer_command(ClientCommand::DrawPoint(x, y));
+                }
             }
         }
     }
