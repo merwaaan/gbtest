@@ -20,7 +20,17 @@ pub enum ServerCommand {  // TODO alias subcommands?
         client_id: u8,
         x: f32,
         y: f32
+    },
+    App {
+        app: AppName
     }
+}
+
+#[derive(clap::ValueEnum, Debug, Clone)]
+pub enum AppName {
+    Info,
+    Fill,
+    Balls
 }
 
 fn main() {
@@ -66,15 +76,21 @@ fn main() {
 
         // Parse the command
 
-        let cli = Args::parse_from(stdin_items);
+        match Args::try_parse_from(stdin_items) {
+            Ok(cli) => {
+                // Stop polling if quitting
+                if matches!(cli.command, ServerCommand::Quit) {
+                    sender.send(cli.command).unwrap();
+                    break;
+                }
 
-        // Stop polling if quitting
-        if matches!(cli.command, ServerCommand::Quit) {
-            sender.send(cli.command);
-            break;
+                sender.send(cli.command).unwrap();
+            }
+            Err(e) => {
+                println!("{}", e);
+            }
         }
 
-        sender.send(cli.command);
     }
     
     server_thread.join().unwrap();

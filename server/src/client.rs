@@ -1,6 +1,10 @@
+use parry2d::bounding_volume::AABB;
+use parry2d::math::{Point, Vector};
+
 use crate::ServerCommand;
 use crate::commands::ClientCommand;
 use std::io::{self, Read};
+use std::ops::Add;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::{io::Write, net::TcpStream};
@@ -16,10 +20,33 @@ pub enum Button {
     Right,
 }
 
+pub struct Screen {
+    pub pos: Point<f32>,
+    pub size: Vector<f32>,
+    pub res: Vector<usize>
+}
+
+impl Screen {
+    pub fn gameboy() -> Self {
+        Self {
+            pos: Point::new(0.0, 0.0),
+            size: Vector::new(14.8, 9.0),
+            res: Vector::new(160, 144)
+        }
+    }
+
+    pub fn bounding_box(&self) -> AABB {
+        AABB::new(
+            self.pos,
+            self.pos.add(self.size)
+        )
+    }
+}
+
 pub struct Client {
     id: String,
 
-    screen: (f32, f32, f32, f32), // x, y, w, h -- 0 0 14.8 9
+    screen: Screen,
     
     thread: JoinHandle<()>,
     unstaged_commands: Vec<ClientCommand>,
@@ -81,7 +108,7 @@ impl Client {
 
         Self {
             id,
-            screen: (0.0, 0.0, 14.8, 9.0),
+            screen: Screen::gameboy(),
             thread,
             unstaged_commands: Vec::new(),
             staged_commands: staged_command_buffer,
@@ -93,7 +120,7 @@ impl Client {
         &self.id
     }
 
-    pub fn screen(&self) -> &(f32, f32, f32, f32) {
+    pub fn screen(&self) -> &Screen {
         &self.screen
     }
 
@@ -115,8 +142,8 @@ impl Client {
         match command {
             ServerCommand::Pos { client_id, x, y } => {
                 println!("client {}: pos to {} {}", self.id, x, y);
-                self.screen.0 = *x;
-                self.screen.1 = *y;
+                self.screen.pos.x = *x;
+                self.screen.pos.y = *y;
             }
 
             _ => {}

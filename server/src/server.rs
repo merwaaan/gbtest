@@ -1,6 +1,6 @@
-use crate::{apps::{app::App, bouncing_balls::BouncingBallsApp}, client::Client};
+use crate::{apps::{bouncing_balls::BouncingBallsApp, App, show_info::ShowInfoApp, fill_screens::FillScreensApp}, client::Client, AppName};
 use crate::ServerCommand;
-use std::io;
+use std::{io, time::{Instant}};
 use std::sync::mpsc::{Sender, TryRecvError};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -8,10 +8,11 @@ use std::{net::TcpListener, vec::Vec};
 
 pub struct Server {
     running: bool,
+    last_update_time: Instant,
     connection_thread_handle: Option<JoinHandle<()>>,
     connection_thread_channel: Option<Sender<u8>>,
     clients: Arc<Mutex<Vec<Client>>>,
-    app: BouncingBallsApp,
+    app: Box<dyn App>,
 }
 
 impl Server {
@@ -19,10 +20,11 @@ impl Server {
     pub fn new() -> Self {
         Server {
             running: false,
+            last_update_time: Instant::now(),
             connection_thread_handle: Option::None,
             connection_thread_channel: Option::None,
             clients: Arc::new(Mutex::new(Vec::new())),
-            app: BouncingBallsApp::new(),
+            app: Box::new(BouncingBallsApp::new()),
         }
     }
 
@@ -96,8 +98,12 @@ impl Server {
     }*/
 
     pub fn update(&mut self) {
-        self.app.update(&mut self.clients.lock().unwrap());
+        let now = Instant::now();
+        let dt = now - self.last_update_time;
+        self.last_update_time = now;
 
+        self.app.update(&dt, &mut self.clients.lock().unwrap());
+        
         for client in self.clients.lock().unwrap().iter_mut() {
             client.send_commands();
         }
@@ -108,6 +114,16 @@ impl Server {
             ServerCommand::Quit => {
                 println!("stopping server");
                 self.running = false;
+            }
+
+            ServerCommand::App { app } => {
+                println!("switching app to {:?}", app);
+                
+                self.app = match app {
+                    AppName::Info => Box::new(ShowInfoApp::new()),
+                    AppName::Fill => Box::new(FillScreensApp::new()),
+                    AppName::Balls => Box::new(BouncingBallsApp::new()),
+                };
             }
         
             _ => {}
