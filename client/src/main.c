@@ -23,28 +23,16 @@ uint8_t receive()
 
 enum Command
 {
-  Print = 0,
+  ClearScreen = 0,
   DrawPoint,
   DrawLine,
   DrawCircle,
+  PrintText
 };
 
-void command_print()
+void command_clear_screen()
 {
-  uint8_t size = receive();
-
-  uint8_t text[100];
-
-  for (uint8_t i = 0; i < size; ++i)
-  {
-    text[i] = receive();
-  }
-
-  text[size] = '\0';
-
-  //printf("print %s\n", text);
-  //gotogxy(50, 50);
-  gprint(text);
+  box(0, 0, 159, 143, M_FILL);
 }
 
 void command_draw_point()
@@ -77,6 +65,25 @@ void command_draw_circle()
   plot_point(x, y);
 }
 
+void command_print_text()
+{
+  uint8_t x = receive() / 8; // units = pixel to tile
+  uint8_t y = receive() / 8;
+
+  uint8_t text[100]; // TODO max size?
+
+  uint8_t size = receive();
+  for (uint8_t i = 0; i < size; ++i)
+  {
+    text[i] = receive();
+  }
+
+  text[size] = '\0';
+
+  gotogxy(x, y);
+  gprint(text);
+}
+
 void wait(int frames)
 {
   for (uint8_t i = 0; i < frames; ++i)
@@ -100,10 +107,11 @@ void receive_commands()
 
     switch (command_id)
     {
-      case Print: command_print(); break;
+      case ClearScreen: command_clear_screen(); break;
       case DrawPoint: command_draw_point(); break;
       case DrawLine: command_draw_line(); break;
       case DrawCircle: command_draw_circle(); break;
+      case PrintText: command_print_text(); break;
 
       default:
         printf("unknown command id: %d\n", command_id);

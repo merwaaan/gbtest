@@ -1,4 +1,4 @@
-use std::{thread, io, time::Duration, sync::mpsc};
+use std::{io, sync::mpsc, thread, time::Duration};
 
 use clap::Parser;
 
@@ -14,13 +14,18 @@ struct Args {
 }
 
 #[derive(clap::Subcommand, Debug)]
-pub enum ServerCommand {  // TODO alias subcommands?
+pub enum ServerCommand {
+    // TODO alias subcommands?
     Quit,
-    Pos {
-        client_id: u8,
-        x: f32,
-        y: f32
-    }
+    Pos { client_id: String, x: f32, y: f32 },
+    App { app: AppName },
+}
+
+#[derive(clap::ValueEnum, Debug, Clone)]
+pub enum AppName {
+    Info,
+    Fill,
+    Balls,
 }
 
 fn main() {
@@ -28,8 +33,7 @@ fn main() {
 
     let (sender, receiver) = mpsc::channel::<ServerCommand>();
 
-    let server_thread = thread::spawn(move ||
-    {
+    let server_thread = thread::spawn(move || {
         let mut server = server::Server::new();
 
         server.start("127.0.0.1:3333");
@@ -50,32 +54,35 @@ fn main() {
             thread::sleep(Duration::from_millis(1000));
         }
     });
-    
+
     // Terminal input
-    
+
     loop {
         let mut stdin_input = String::new();
         io::stdin().read_line(&mut stdin_input).unwrap();
         stdin_input = stdin_input.trim().to_string();
 
-        let stdin_items = stdin_input
-            .split(" ")
-            .map(|item| item.trim());
+        let stdin_items = stdin_input.split(" ").map(|item| item.trim());
 
         // TODO ignore first item? (app name?)
 
         // Parse the command
 
-        let cli = Args::parse_from(stdin_items);
+        match Args::try_parse_from(stdin_items) {
+            Ok(cli) => {
+                // Stop polling if quitting
+                if matches!(cli.command, ServerCommand::Quit) {
+                    sender.send(cli.command).unwrap();
+                    break;
+                }
 
-        // Stop polling if quitting
-        if matches!(cli.command, ServerCommand::Quit) {
-            sender.send(cli.command);
-            break;
+                sender.send(cli.command).unwrap();
+            }
+            Err(e) => {
+                println!("{}", e);
+            }
         }
-
-        sender.send(cli.command);
     }
-    
+
     server_thread.join().unwrap();
 }

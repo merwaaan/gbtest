@@ -1,8 +1,13 @@
-use crate::ServerCommand;
+use parry2d::bounding_volume::AABB;
+use parry2d::math::{Point, Vector};
+
 use crate::commands::ClientCommand;
+use crate::ServerCommand;
 use std::io::{self, Read};
+use std::ops::Add;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 use std::{io::Write, net::TcpStream};
 
 pub enum Button {
@@ -16,11 +21,31 @@ pub enum Button {
     Right,
 }
 
+pub struct Screen {
+    pub pos: Point<f32>,
+    pub size: Vector<f32>,
+    pub res: Vector<usize>,
+}
+
+impl Screen {
+    pub fn gameboy() -> Self {
+        Self {
+            pos: Point::new(0.0, 0.0),
+            size: Vector::new(14.8, 9.0),
+            res: Vector::new(160, 144),
+        }
+    }
+
+    pub fn bounding_box(&self) -> AABB {
+        AABB::new(self.pos, self.pos.add(self.size))
+    }
+}
+
 pub struct Client {
     id: String,
 
-    screen: (f32, f32, f32, f32), // x, y, w, h -- 0 0 14.8 9
-    
+    screen: Screen,
+
     thread: JoinHandle<()>,
     unstaged_commands: Vec<ClientCommand>,
     staged_commands: Arc<Mutex<Vec<ClientCommand>>>,
@@ -33,58 +58,57 @@ impl Client {
     pub fn new(mut stream: TcpStream) -> Self {
         let id = stream.peer_addr().unwrap().to_string();
 
-        let concurrent_commands = Arc::new(Mutex::new(Vec::new()));
-        let staged_command_buffer = concurrent_commands.clone();
+        let concurrent_staged_commands = Arc::new(Mutex::new(Vec::new()));
+        let staged_commands = concurrent_staged_commands.clone();
 
         let thread = thread::spawn(move || {
-            {
-                // Send commands
+            loop {
+                {
+                    // Send commands
 
-                let commands: MutexGuard<Vec<ClientCommand>> = concurrent_commands.lock().unwrap();
+                    let mut commands: MutexGuard<Vec<ClientCommand>> =
+                        concurrent_staged_commands.lock().unwrap();
 
-                println!("Sending {} commands", commands.len());
+                    stream.write(&[commands.len() as u8]).unwrap();
 
-                println!("0");
+                    for command in commands.iter() {
+                        println!("Sending command: {:?}", command);
 
-                stream.write(&[commands.len() as u8]).unwrap();
-
-                for command in commands.iter() {
-                    println!("Sending command: {:?}", command);
-
-                    let data = command.to_bytes();
-                    stream.write(&data).unwrap();
-                }
-
-                concurrent_commands.lock().unwrap().clear();
-            }
-
-            // Receive inputs
-
-            let mut received_data = [0u8];
-
-            println!("1");
-            let received_bytes = match stream.read(&mut received_data) {
-                Ok(n) => {
-                    println!("Received {} bytes", n);
-                    n
-                }
-                Err(e) => {
-                    if e.kind() != io::ErrorKind::WouldBlock {
-                        println!("Error: {}", e);
+                        let data = command.to_bytes();
+                        stream.write(&data).unwrap();
                     }
 
-                    0
+                    commands.clear();
                 }
-            };
-            println!("2");
+
+                // Receive inputs
+
+                let mut received_data = [0u8];
+
+                match stream.read(&mut received_data) {
+                    Ok(n) => {
+                        println!("Received {} bytes", n);
+                        n
+                    }
+                    Err(e) => {
+                        if e.kind() != io::ErrorKind::WouldBlock {
+                            println!("Error: {}", e);
+                        }
+
+                        0
+                    }
+                };
+
+                thread::sleep(Duration::from_millis(1000));
+            }
         });
 
         Self {
             id,
-            screen: (0.0, 0.0, 14.8, 9.0),
+            screen: Screen::gameboy(),
             thread,
             unstaged_commands: Vec::new(),
-            staged_commands: staged_command_buffer,
+            staged_commands,
             inputs: 0,
         }
     }
@@ -93,7 +117,7 @@ impl Client {
         &self.id
     }
 
-    pub fn screen(&self) -> &(f32, f32, f32, f32) {
+    pub fn screen(&self) -> &Screen {
         &self.screen
     }
 
@@ -102,21 +126,24 @@ impl Client {
     }
 
     pub fn send_commands(&mut self) {
-        let mut staged_commands: MutexGuard<Vec<ClientCommand>> = self.staged_commands.lock().unwrap();
+        let mut concurrent_staged_commands: MutexGuard<Vec<ClientCommand>> =
+            self.staged_commands.lock().unwrap();
 
-        for unstaged_command in self.unstaged_commands.iter_mut() {
+        for unstaged_command in self.unstaged_commands.iter() {
             println!("Staging command: {:?}", unstaged_command);
 
-            staged_commands.push(unstaged_command.clone());
+            concurrent_staged_commands.push(unstaged_command.clone());
         }
+
+        self.unstaged_commands.clear();
     }
-    
-    pub fn process_server_command(&mut self, command: &ServerCommand) {               
+
+    pub fn process_server_command(&mut self, command: &ServerCommand) {
         match command {
             ServerCommand::Pos { client_id, x, y } => {
                 println!("client {}: pos to {} {}", self.id, x, y);
-                self.screen.0 = *x;
-                self.screen.1 = *y;
+                self.screen.pos.x = *x;
+                self.screen.pos.y = *y;
             }
 
             _ => {}

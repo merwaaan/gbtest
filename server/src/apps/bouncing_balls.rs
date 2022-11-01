@@ -1,6 +1,6 @@
-use std::ops::Add;
+use std::{ops::Add, time::Duration};
 
-use super::app::App;
+use crate::{apps::App, client::Screen};
 use crate::client::Client;
 use crate::ServerCommand;
 use crate::commands::ClientCommand;
@@ -27,20 +27,13 @@ impl BouncingBallsApp {
 }
 
 impl App for BouncingBallsApp {
-    fn update(&mut self, clients: &mut Vec<Client>) {
+    fn update(&mut self, dt: &Duration, clients: &mut Vec<Client>) {
         // Compute the current bounding box
 
         let mut new_aabb = AABB::new_invalid();
 
         for client in clients.iter() {
-            let (x, y, w, h) = client.screen();
-
-            let client_aabb = AABB::new(
-                Point::new(*x, *y),
-                Point::new(*x + *w, *y + *h)
-            );
-
-            new_aabb.merge(&client_aabb);
+            new_aabb.merge(&client.screen().bounding_box());
         }
 
         // Check if it changed, correct the balls' positions if needed
@@ -53,7 +46,7 @@ impl App for BouncingBallsApp {
 
         // TEMP Spawn a ball
         // TODO on input?
-        
+
         if self.balls.is_empty() && self.area.volume() > 0.0 {
             self.balls.push(
                 Ball {
@@ -99,8 +92,5 @@ impl App for BouncingBallsApp {
                 //client.buffer_command(ClientCommand::DrawPoint(?, ?));
             }
         }
-    }
-    
-    fn process_server_command(&mut self, command: &ServerCommand) {               
     }
 }
