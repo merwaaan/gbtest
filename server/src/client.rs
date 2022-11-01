@@ -1,10 +1,14 @@
 use parry2d::bounding_volume::AABB;
 use parry2d::math::{Point, Vector};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::commands::ClientCommand;
 use crate::ServerCommand;
+use std::fs;
 use std::io::{self, Read};
 use std::ops::Add;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -42,11 +46,12 @@ impl Screen {
 }
 
 pub struct Client {
-    id: String,
+    id: u8,
 
     screen: Screen,
 
     thread: JoinHandle<()>,
+
     unstaged_commands: Vec<ClientCommand>,
     staged_commands: Arc<Mutex<Vec<ClientCommand>>>,
 
@@ -54,9 +59,47 @@ pub struct Client {
     inputs: u8,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+struct ClientAttributes {
+    pub pos: (f32, f32),
+}
+
+impl ClientAttributes {
+    fn new(client: &Client) -> Self {
+        Self {
+            pos: (client.screen().pos.x, client.screen().pos.y),
+        }
+    }
+}
+
+static NEXT_ID: AtomicU8 = AtomicU8::new(0);
+
+fn client_filename(id: u8) -> String {
+    format!("client-{}.json", id)
+}
+
 impl Client {
     pub fn new(mut stream: TcpStream) -> Self {
-        let id = stream.peer_addr().unwrap().to_string();
+        // Attribute an ID
+        let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+
+        let mut screen = Screen::gameboy();
+
+        // Try to read saved attributes
+        match fs::read_to_string(client_filename(id)) {
+            Ok(json_string) => match serde_json::from_str::<ClientAttributes>(&json_string) {
+                Ok(attributes) => {
+                    screen.pos.x = attributes.pos.0;
+                    screen.pos.y = attributes.pos.1;
+                }
+                Err(e) => {
+                    println!("Cannot parse attributes");
+                }
+            },
+            Err(e) => {
+                println!("Cannot load client attributes");
+            }
+        }
 
         let concurrent_staged_commands = Arc::new(Mutex::new(Vec::new()));
         let staged_commands = concurrent_staged_commands.clone();
@@ -105,7 +148,7 @@ impl Client {
 
         Self {
             id,
-            screen: Screen::gameboy(),
+            screen,
             thread,
             unstaged_commands: Vec::new(),
             staged_commands,
@@ -113,8 +156,8 @@ impl Client {
         }
     }
 
-    pub fn id(&self) -> &str {
-        &self.id
+    pub fn id(&self) -> u8 {
+        self.id
     }
 
     pub fn screen(&self) -> &Screen {
@@ -141,9 +184,24 @@ impl Client {
     pub fn process_server_command(&mut self, command: &ServerCommand) {
         match command {
             ServerCommand::Pos { client_id, x, y } => {
-                println!("client {}: pos to {} {}", self.id, x, y);
-                self.screen.pos.x = *x;
-                self.screen.pos.y = *y;
+                if self.id == *client_id {
+                    println!("client {}: pos to {} {}", self.id, x, y);
+                    self.screen.pos.x = *x;
+                    self.screen.pos.y = *y;
+
+                    // Save
+                    match serde_json::to_string(&ClientAttributes::new(self)) {
+                        Ok(json_string) => match fs::write(client_filename(self.id), json_string) {
+                            Err(e) => {
+                                println!("Cannot save client attributes");
+                            }
+                            _ => {}
+                        },
+                        Err(e) => {
+                            println!("Cannot serialize attributes");
+                        }
+                    }
+                }
             }
 
             _ => {}

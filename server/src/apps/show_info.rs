@@ -12,7 +12,7 @@ struct Info {
 }
 
 pub struct ShowInfoApp {
-    last_client_info: HashMap<String, Info>,
+    last_client_info: HashMap<u8, Info>,
 }
 
 impl ShowInfoApp {
@@ -28,13 +28,13 @@ impl App for ShowInfoApp {
         for client in clients {
             let mut needs_update = false;
 
-            match self.last_client_info.get_mut(client.id()) {
+            match self.last_client_info.get_mut(&client.id()) {
                 // The client is new
                 None => {
                     println!("ShowInfoApp: new client {}", client.id());
 
                     self.last_client_info.insert(
-                        client.id().to_string(),
+                        client.id(),
                         Info {
                             pos: client.screen().pos,
                         },
@@ -57,12 +57,12 @@ impl App for ShowInfoApp {
                 client.buffer_command(ClientCommand::PrintText(
                     0,
                     0,
-                    format!("ID: {}", client.id()),
-                ));
-                client.buffer_command(ClientCommand::PrintText(
-                    0,
-                    20,
-                    format!("Pos: {} {}", client.screen().pos.x, client.screen().pos.y),
+                    format!(
+                        "ID: {} / Pos: {} {}",
+                        client.id(),
+                        client.screen().pos.x,
+                        client.screen().pos.y
+                    ),
                 ));
             }
         }

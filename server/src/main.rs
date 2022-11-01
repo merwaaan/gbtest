@@ -17,7 +17,7 @@ struct Args {
 pub enum ServerCommand {
     // TODO alias subcommands?
     Quit,
-    Pos { client_id: String, x: f32, y: f32 },
+    Pos { client_id: u8, x: f32, y: f32 },
     App { app: AppName },
 }
 

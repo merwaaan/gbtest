@@ -1,4 +1,5 @@
 .vscode
 _*
+*.json
 server/target
 tools/vcpkg
