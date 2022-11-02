@@ -51,7 +51,7 @@ fn main() {
                 Err(mpsc::TryRecvError::Empty) => {}
             }
 
-            thread::sleep(Duration::from_millis(100));
+            thread::sleep(Duration::from_millis(1000));
         }
     });
 

@@ -24,6 +24,7 @@ uint8_t receive()
 enum Command
 {
   ClearScreen = 0,
+  ClearRect,
   DrawPoint,
   DrawLine,
   DrawCircle,
@@ -33,6 +34,17 @@ enum Command
 void command_clear_screen()
 {
   box(0, 0, 159, 143, M_FILL);
+}
+
+void command_clear_rect()
+{
+  uint8_t x = receive();
+  uint8_t y = receive();
+  uint8_t w = receive();
+  uint8_t h = receive();
+
+  color(WHITE, WHITE, SOLID);
+  box(x, y, x + w, x + y, M_FILL);
 }
 
 void command_draw_point()
@@ -108,6 +120,7 @@ void receive_commands()
     switch (command_id)
     {
       case ClearScreen: command_clear_screen(); break;
+      case ClearRect: command_clear_rect(); break;
       case DrawPoint: command_draw_point(); break;
       case DrawLine: command_draw_line(); break;
       case DrawCircle: command_draw_circle(); break;
