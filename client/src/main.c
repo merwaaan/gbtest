@@ -30,6 +30,7 @@ enum Command
   DrawCircle,
   PrintText,
   LoadTile,
+  SetBackgroundTile,
   SetSpriteTile,
   MoveSprite
 };
@@ -105,14 +106,28 @@ void command_load_tile()
   uint8_t tile_index = receive();
 
   uint8_t tile_data[16];
-
   for (int i = 0; i < 16; ++i)
   {
     tile_data[i] = receive();
   }
 
-  // TODO background/sprite
-  set_sprite_data(tile_index, 1, tile_data);
+  if (is_background == 1)
+  {
+    set_bkg_data(tile_index, 1, tile_data);
+  }
+  else
+  {
+    set_sprite_data(tile_index, 1, tile_data);
+  }
+}
+
+void command_set_background_tile()
+{
+  uint8_t tile_x = receive();
+  uint8_t tile_y = receive();
+  uint8_t tile_index = receive();
+
+  set_bkg_tiles(tile_x, tile_y, 1, 1, &tile_index);
 }
 
 void command_set_sprite_tile()
@@ -154,6 +169,7 @@ void receive_commands()
       case DrawCircle: command_draw_circle(); break;
       case PrintText: command_print_text(); break;
       case LoadTile: command_load_tile(); break;
+      case SetBackgroundTile: command_set_background_tile(); break;
       case SetSpriteTile: command_set_sprite_tile(); break;
       case MoveSprite: command_move_sprite(); break;
 
@@ -166,6 +182,7 @@ void receive_commands()
 void main()
 {
   DISPLAY_ON;
+  SHOW_BKG;
   SHOW_SPRITES;
 
   while (1)

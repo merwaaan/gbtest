@@ -35,36 +35,25 @@ static ball_tile: [u8; 16] = [
     0xFFu8, 0xBDu8, 0xFFu8, 0xFFu8, 0x3Cu8, 0x66u8, 0x3Cu8, 0x3Cu8,
 ];
 
+static wall_tile: [u8; 16] = [
+    0xFFu8, 0xFFu8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, //
+    0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0xFFu8, 0xFFu8,
+];
+
 impl App for BouncingBallsApp {
     fn update(&mut self, dt: &Duration, clients: &mut Vec<Client>) {
+        // Compute the current bounding box
+
         let mut new_aabb = AABB::new_invalid();
 
-        // Handle new clients
-
         for client in clients.iter_mut() {
-            if !self.known_client_ids.contains(&client.id()) {
-                self.known_client_ids.insert(client.id());
-
-                // Create the ball sprites
-
-                client.buffer_command(ClientCommand::LoadTile(false, 0, ball_tile));
-
-                for ball_index in 0..self.balls.len() {
-                    client.buffer_command(ClientCommand::SetSpriteTile(ball_index as u8, 0));
-                }
-            }
-
-            // Compute the current bounding box
-
             new_aabb.merge(&client.screen().bounding_box());
         }
-
-        // Check if it changed, correct the balls' positions if needed
 
         if new_aabb != self.area {
             self.area = new_aabb;
 
-            // TODO correct
+            // TODO correct ball pos
         }
 
         // TEMP Spawn a ball
@@ -79,11 +68,32 @@ impl App for BouncingBallsApp {
             // TODO create sprites for clients
         }
 
+        // Handle new clients
+
+        for client in clients.iter_mut() {
+            if !self.known_client_ids.contains(&client.id()) {
+                self.known_client_ids.insert(client.id());
+
+                // Load the tiles
+
+                client.buffer_command(ClientCommand::LoadTile(false, 0, ball_tile));
+                client.buffer_command(ClientCommand::LoadTile(true, 1, wall_tile));
+
+                // Create the ball sprites
+
+                for ball_index in 0..self.balls.len() {
+                    client.buffer_command(ClientCommand::SetSpriteTile(ball_index as u8, 0));
+                }
+
+                // Create the walls in the background
+
+                client.buffer_command(ClientCommand::SetBackgroundTile(0, 0, 1));
+            }
+        }
+
         // Move the balls
 
         for ball in &mut self.balls {
-            // Roll
-
             ball.pos = ball.pos.add(ball.vel);
 
             // Bounce
@@ -106,7 +116,7 @@ impl App for BouncingBallsApp {
             }
         }
 
-        // Move balls to their new positions
+        // Update the sprites positions
 
         for client in clients.iter_mut() {
             for (ball_index, ball) in self.balls.iter().enumerate() {

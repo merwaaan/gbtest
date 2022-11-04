@@ -9,6 +9,7 @@ pub enum ClientCommand {
     DrawCircle(u8, u8, u8),
     PrintText(u8, u8, String),
     LoadTile(bool, u8, [u8; 16]),
+    SetBackgroundTile(u8, u8, u8),
     SetSpriteTile(u8, u8),
     MoveSprite(u8, u8, u8),
 }
@@ -30,17 +31,20 @@ impl ClientCommand {
                 data
             }
             ClientCommand::LoadTile(is_background, tile_index, tile_data) => {
-                let mut data = vec![6, if *is_background { 0 } else { 1 }, *tile_index];
+                let mut data = vec![6, if *is_background { 1 } else { 0 }, *tile_index];
                 for tile_byte in tile_data.iter() {
                     data.push(*tile_byte);
                 }
                 data
             }
+            ClientCommand::SetBackgroundTile(tile_x, tile_y, tile_index) => {
+                vec![7, *tile_x, *tile_y, *tile_index]
+            }
             ClientCommand::SetSpriteTile(sprite_index, tile_index) => {
-                vec![7, *sprite_index, *tile_index]
+                vec![8, *sprite_index, *tile_index]
             }
             ClientCommand::MoveSprite(sprite_index, x, y) => {
-                vec![8, *sprite_index, *x, *y]
+                vec![9, *sprite_index, *x, *y]
             }
         }
     }
