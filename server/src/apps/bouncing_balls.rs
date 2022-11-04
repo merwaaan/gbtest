@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::{ops::Add, time::Duration};
 
 use crate::client::Client;
@@ -16,6 +17,7 @@ struct Ball {
 pub struct BouncingBallsApp {
     area: AABB,
     balls: Vec<Ball>,
+    known_client_ids: HashSet<u8>,
 }
 
 impl BouncingBallsApp {
@@ -23,20 +25,40 @@ impl BouncingBallsApp {
         Self {
             area: AABB::new_invalid(),
             balls: Vec::new(),
+            known_client_ids: HashSet::new(),
         }
     }
 }
 
+static ball_tile: [u8; 16] = [
+    0x3Cu8, 0x3Cu8, 0x3Cu8, 0x66u8, 0xFFu8, 0xFFu8, 0xFFu8, 0xBDu8, //
+    0xFFu8, 0xBDu8, 0xFFu8, 0xFFu8, 0x3Cu8, 0x66u8, 0x3Cu8, 0x3Cu8,
+];
+
 impl App for BouncingBallsApp {
     fn update(&mut self, dt: &Duration, clients: &mut Vec<Client>) {
-        // Compute the current bounding box
-
         let mut new_aabb = AABB::new_invalid();
 
-        for client in clients.iter() {
+        // Handle new clients
+
+        for client in clients.iter_mut() {
+            if !self.known_client_ids.contains(&client.id()) {
+                self.known_client_ids.insert(client.id());
+
+                // Create the ball sprites
+
+                client.buffer_command(ClientCommand::LoadTile(false, 0, ball_tile));
+
+                for ball_index in 0..self.balls.len() {
+                    client.buffer_command(ClientCommand::SetSpriteTile(ball_index as u8, 0));
+                }
+            }
+
+            // Compute the current bounding box
+
             new_aabb.merge(&client.screen().bounding_box());
         }
-        println!("{:?}", new_aabb);
+
         // Check if it changed, correct the balls' positions if needed
 
         if new_aabb != self.area {
@@ -53,23 +75,8 @@ impl App for BouncingBallsApp {
                 pos: self.area.center(),
                 vel: Vector::new(0.1, 0.1),
             });
-        }
 
-        // Clear the previous balls
-
-        for client in clients.iter_mut() {
-            for ball in &self.balls {
-                if client.screen().contains(&ball.pos) {
-                    let screen_pos = to_client_space(client, &ball.pos);
-
-                    client.buffer_command(ClientCommand::ClearRect(
-                        screen_pos.x,
-                        screen_pos.y,
-                        1,
-                        1,
-                    ));
-                }
-            }
+            // TODO create sprites for clients
         }
 
         // Move the balls
@@ -99,14 +106,18 @@ impl App for BouncingBallsApp {
             }
         }
 
-        // Draw at the new position
+        // Move balls to their new positions
 
         for client in clients.iter_mut() {
-            for ball in &self.balls {
+            for (ball_index, ball) in self.balls.iter().enumerate() {
                 if client.screen().contains(&ball.pos) {
                     let screen_pos = to_client_space(client, &ball.pos);
 
-                    client.buffer_command(ClientCommand::DrawPoint(screen_pos.x, screen_pos.y));
+                    client.buffer_command(ClientCommand::MoveSprite(
+                        ball_index as u8,
+                        screen_pos.x,
+                        screen_pos.y,
+                    ));
                 }
             }
         }

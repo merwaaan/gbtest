@@ -8,6 +8,9 @@ pub enum ClientCommand {
     DrawLine(u8, u8, u8, u8),
     DrawCircle(u8, u8, u8),
     PrintText(u8, u8, String),
+    LoadTile(bool, u8, [u8; 16]),
+    SetSpriteTile(u8, u8),
+    MoveSprite(u8, u8, u8),
 }
 
 impl ClientCommand {
@@ -25,6 +28,19 @@ impl ClientCommand {
                 }
                 // TODO add length? or \0?
                 data
+            }
+            ClientCommand::LoadTile(is_background, tile_index, tile_data) => {
+                let mut data = vec![6, if *is_background { 0 } else { 1 }, *tile_index];
+                for tile_byte in tile_data.iter() {
+                    data.push(*tile_byte);
+                }
+                data
+            }
+            ClientCommand::SetSpriteTile(sprite_index, tile_index) => {
+                vec![7, *sprite_index, *tile_index]
+            }
+            ClientCommand::MoveSprite(sprite_index, x, y) => {
+                vec![8, *sprite_index, *x, *y]
             }
         }
     }

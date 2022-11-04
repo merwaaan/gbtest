@@ -28,7 +28,10 @@ enum Command
   DrawPoint,
   DrawLine,
   DrawCircle,
-  PrintText
+  PrintText,
+  LoadTile,
+  SetSpriteTile,
+  MoveSprite
 };
 
 void command_clear_screen()
@@ -96,6 +99,39 @@ void command_print_text()
   gprint(text);
 }
 
+void command_load_tile()
+{
+  uint8_t is_background = receive();
+  uint8_t tile_index = receive();
+
+  uint8_t tile_data[16];
+
+  for (int i = 0; i < 16; ++i)
+  {
+    tile_data[i] = receive();
+  }
+
+  // TODO background/sprite
+  set_sprite_data(tile_index, 1, tile_data);
+}
+
+void command_set_sprite_tile()
+{
+  uint8_t sprite_index = receive();
+  uint8_t tile_index = receive();
+
+  set_sprite_tile(sprite_index, tile_index);
+}
+
+void command_move_sprite()
+{
+  uint8_t sprite_index = receive();
+  uint8_t x = receive();
+  uint8_t y = receive();
+
+  move_sprite(sprite_index, x, y);
+}
+
 void send_inputs()
 {
   send(joypad());
@@ -117,6 +153,9 @@ void receive_commands()
       case DrawLine: command_draw_line(); break;
       case DrawCircle: command_draw_circle(); break;
       case PrintText: command_print_text(); break;
+      case LoadTile: command_load_tile(); break;
+      case SetSpriteTile: command_set_sprite_tile(); break;
+      case MoveSprite: command_move_sprite(); break;
 
       default:
         printf("unknown command id: %d\n", command_id);
@@ -126,10 +165,14 @@ void receive_commands()
 
 void main()
 {
+  DISPLAY_ON;
+  SHOW_SPRITES;
+
   while (1)
   {
     send_inputs();
     receive_commands();
+
     wait_vbl_done();
   }
 }
