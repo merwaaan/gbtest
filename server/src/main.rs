@@ -34,13 +34,11 @@ fn main() {
     let (sender, receiver) = mpsc::channel::<ServerCommand>();
 
     let server_thread = thread::spawn(move || {
-        let mut server = server::Server::new();
+        let mut server = server::Server::new(10u8);
 
         server.start("127.0.0.1:3333");
 
         while server.is_running() {
-            server.update();
-
             match receiver.try_recv() {
                 Ok(command) => {
                     server.process_command(&command);
@@ -51,7 +49,8 @@ fn main() {
                 Err(mpsc::TryRecvError::Empty) => {}
             }
 
-            thread::sleep(Duration::from_millis(1000));
+            server.update();
+            server.wait_for_next_update();
         }
     });
 

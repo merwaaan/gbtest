@@ -9,24 +9,30 @@ use crate::{
 use std::sync::mpsc::{Sender, TryRecvError};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::Duration;
 use std::{io, time::Instant};
 use std::{net::TcpListener, vec::Vec};
 
 pub struct Server {
-    running: bool,
+    update_per_sec: u8,
     last_update_time: Instant,
+
+    running: bool,
+
     connection_thread_handle: Option<JoinHandle<()>>,
     connection_thread_channel: Option<Sender<u8>>,
     clients: Arc<Mutex<Vec<Client>>>,
+
     app: Box<dyn App>,
 }
 
 impl Server {
     // TODO merge new/start
-    pub fn new() -> Self {
+    pub fn new(update_per_sec: u8) -> Self {
         Server {
-            running: false,
+            update_per_sec,
             last_update_time: Instant::now(),
+            running: false,
             connection_thread_handle: Option::None,
             connection_thread_channel: Option::None,
             clients: Arc::new(Mutex::new(Vec::new())),
@@ -36,6 +42,17 @@ impl Server {
 
     pub fn is_running(&self) -> bool {
         self.running
+    }
+
+    pub fn wait_for_next_update(&self) {
+        let update_interval = Duration::from_secs_f32(1.0f32 / self.update_per_sec as f32);
+
+        let now = Instant::now();
+        let since_last_update = now - self.last_update_time;
+
+        let to_next_update = update_interval - since_last_update;
+
+        thread::sleep(to_next_update);
     }
 
     pub fn start(&mut self, address: &str) {

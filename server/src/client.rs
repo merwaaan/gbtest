@@ -42,6 +42,10 @@ impl Screen {
     pub fn bounding_box(&self) -> AABB {
         AABB::new(self.pos, self.pos.add(self.size))
     }
+
+    pub fn contains(&self, point: &Point<f32>) -> bool {
+        self.bounding_box().contains_local_point(point)
+    }
 }
 
 pub struct Client {
@@ -141,7 +145,7 @@ impl Client {
                     }
                 };
 
-                thread::sleep(Duration::from_millis(1000));
+                thread::sleep(Duration::from_millis(20));
             }
         });
 

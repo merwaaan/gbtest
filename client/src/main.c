@@ -44,7 +44,7 @@ void command_clear_rect()
   uint8_t h = receive();
 
   color(WHITE, WHITE, SOLID);
-  box(x, y, x + w, x + y, M_FILL);
+  box(x, y, x + w, x + h, M_FILL);
 }
 
 void command_draw_point()
@@ -94,14 +94,6 @@ void command_print_text()
 
   gotogxy(x, y);
   gprint(text);
-}
-
-void wait(int frames)
-{
-  for (uint8_t i = 0; i < frames; ++i)
-  {
-    wait_vbl_done();
-  }
 }
 
 void send_inputs()

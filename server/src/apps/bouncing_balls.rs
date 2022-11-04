@@ -36,7 +36,7 @@ impl App for BouncingBallsApp {
         for client in clients.iter() {
             new_aabb.merge(&client.screen().bounding_box());
         }
-
+        println!("{:?}", new_aabb);
         // Check if it changed, correct the balls' positions if needed
 
         if new_aabb != self.area {
@@ -51,18 +51,24 @@ impl App for BouncingBallsApp {
         if self.balls.is_empty() && self.area.volume() > 0.0 {
             self.balls.push(Ball {
                 pos: self.area.center(),
-                vel: Vector::new(1.0, 1.0),
-            })
+                vel: Vector::new(0.1, 0.1),
+            });
         }
 
         // Clear the previous balls
 
         for client in clients.iter_mut() {
             for ball in &self.balls {
-                // TODO check if overlaps screen
+                if client.screen().contains(&ball.pos) {
+                    let screen_pos = to_client_space(client, &ball.pos);
 
-                let screen_pos = to_client_space(client, &ball.pos);
-                client.buffer_command(ClientCommand::ClearRect(screen_pos.x, screen_pos.y, 1, 1));
+                    client.buffer_command(ClientCommand::ClearRect(
+                        screen_pos.x,
+                        screen_pos.y,
+                        1,
+                        1,
+                    ));
+                }
             }
         }
 
@@ -97,10 +103,11 @@ impl App for BouncingBallsApp {
 
         for client in clients.iter_mut() {
             for ball in &self.balls {
-                // TODO check if overlaps screen
+                if client.screen().contains(&ball.pos) {
+                    let screen_pos = to_client_space(client, &ball.pos);
 
-                let screen_pos = to_client_space(client, &ball.pos);
-                client.buffer_command(ClientCommand::DrawPoint(screen_pos.x, screen_pos.y));
+                    client.buffer_command(ClientCommand::DrawPoint(screen_pos.x, screen_pos.y));
+                }
             }
         }
     }
