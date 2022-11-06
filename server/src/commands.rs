@@ -1,5 +1,3 @@
-use crate::client::Client;
-
 #[derive(Debug, Clone)]
 pub enum ClientCommand {
     ClearScreen,
@@ -8,8 +6,8 @@ pub enum ClientCommand {
     DrawLine(u8, u8, u8, u8),
     DrawCircle(u8, u8, u8),
     PrintText(u8, u8, String),
-    LoadTile(bool, u8, [u8; 16]),
-    SetBackgroundTile(u8, u8, u8),
+    LoadTiles(bool, u16, u16, Vec<u8>),
+    SetBackgroundTiles(u8, u8, u8, u8, Vec<u16>),
     SetSpriteTile(u8, u8),
     MoveSprite(u8, u8, u8),
 }
@@ -30,15 +28,31 @@ impl ClientCommand {
                 // TODO add length? or \0?
                 data
             }
-            ClientCommand::LoadTile(is_background, tile_index, tile_data) => {
-                let mut data = vec![6, if *is_background { 1 } else { 0 }, *tile_index];
+            ClientCommand::LoadTiles(is_background, tile_index, tile_count, tile_data) => {
+                let mut data = vec![
+                    6,
+                    if *is_background { 1 } else { 0 },
+                    ((*tile_index & 0xFF00) >> 8) as u8,
+                    *tile_index as u8,
+                    ((*tile_count & 0xFF00) >> 8) as u8,
+                    *tile_count as u8,
+                ];
+
                 for tile_byte in tile_data.iter() {
                     data.push(*tile_byte);
                 }
+
                 data
             }
-            ClientCommand::SetBackgroundTile(tile_x, tile_y, tile_index) => {
-                vec![7, *tile_x, *tile_y, *tile_index]
+            ClientCommand::SetBackgroundTiles(tile_x, tile_y, columns, rows, tile_indices) => {
+                let mut data = vec![7, *tile_x, *tile_y, *columns, *rows];
+
+                for tile_index in tile_indices.iter() {
+                    data.push(((*tile_index & 0xFF00) >> 8) as u8);
+                    data.push(*tile_index as u8);
+                }
+
+                data
             }
             ClientCommand::SetSpriteTile(sprite_index, tile_index) => {
                 vec![8, *sprite_index, *tile_index]

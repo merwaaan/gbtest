@@ -15,10 +15,16 @@ void send(uint8_t value)
 uint8_t receive()
 {
     uint8_t value = _IO[COMM_IO_OFFSET];
-
     //printf("received %d\n", value);
-
     return value;
+}
+
+uint16_t receive_word()
+{
+  uint16_t value = receive();
+  value <<= 8;
+  value |= receive();
+  return value;
 }
 
 enum Command
@@ -29,8 +35,8 @@ enum Command
   DrawLine,
   DrawCircle,
   PrintText,
-  LoadTile,
-  SetBackgroundTile,
+  LoadTiles,
+  SetBackgroundTiles,
   SetSpriteTile,
   MoveSprite
 };
@@ -100,37 +106,52 @@ void command_print_text()
   gprint(text);
 }
 
-void command_load_tile()
+void command_load_tiles()
 {
   uint8_t is_background = receive();
-  uint8_t tile_index = receive();
+  uint16_t tile_start_index = receive_word();
+  uint16_t tile_count = receive_word();
 
-  uint8_t tile_data[16];
-  for (int i = 0; i < 16; ++i)
-  {
-    tile_data[i] = receive();
-  }
+  // NOTE: using a large 32*32*16 buffer crashes the game, so we do it tile-after-tile instead
+  uint8_t tiles_data[16];
 
-  if (is_background == 1)
+  for (int tile_index = 0; tile_index < tile_count; ++tile_index)
   {
-    set_bkg_data(tile_index, 1, tile_data);
-  }
-  else
-  {
-    set_sprite_data(tile_index, 1, tile_data);
+    for (int i = 0; i < 16; ++i)
+    {
+      tiles_data[i] = receive();
+    }
+
+    if (is_background == 1)
+    {
+      set_bkg_data(tile_start_index + tile_index, 1, tiles_data);
+    }
+    else
+    {
+      set_sprite_data(tile_start_index + tile_index, 1, tiles_data);
+    }
   }
 }
 
-void command_set_background_tile()
+void command_set_background_tiles()
 {
   uint8_t tile_x = receive();
   uint8_t tile_y = receive();
-  uint8_t tile_index = receive();
+  uint8_t tile_columns = receive();
+  uint8_t tile_rows = receive();
+  uint16_t tile_count = tile_columns * tile_rows;
 
-  set_bkg_tiles(tile_x, tile_y, 1, 1, &tile_index);
+  uint16_t tiles_indices[32 * 32]; // TODO max tile data for the whole bg, ok? or use malloc?
+
+  for (int i = 0; i < tile_count; ++i)
+  {
+    tiles_indices[i] = receive_word();
+  }
+
+  set_bkg_tiles(tile_x, tile_y, tile_columns, tile_rows, tiles_indices);
 }
 
-void command_set_sprite_tile()
+void command_set_sprite_tile() // TODO multi tiles
 {
   uint8_t sprite_index = receive();
   uint8_t tile_index = receive();
@@ -168,8 +189,8 @@ void receive_commands()
       case DrawLine: command_draw_line(); break;
       case DrawCircle: command_draw_circle(); break;
       case PrintText: command_print_text(); break;
-      case LoadTile: command_load_tile(); break;
-      case SetBackgroundTile: command_set_background_tile(); break;
+      case LoadTiles: command_load_tiles(); break;
+      case SetBackgroundTiles: command_set_background_tiles(); break;
       case SetSpriteTile: command_set_sprite_tile(); break;
       case MoveSprite: command_move_sprite(); break;
 

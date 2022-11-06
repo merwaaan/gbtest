@@ -34,7 +34,7 @@ impl Screen {
     pub fn gameboy() -> Self {
         Self {
             pos: Point::new(0.0, 0.0),
-            size: Vector::new(14.8, 9.0),
+            size: Vector::new(4.8, 4.3), // TODO store as diagonal to avoid ratio inaccuracies?
             res: Vector::new(160, 144),
         }
     }
@@ -96,11 +96,11 @@ impl Client {
                     screen.pos.y = attributes.pos.1;
                 }
                 Err(e) => {
-                    println!("Cannot parse attributes");
+                    println!("Cannot parse attributes: {}", e);
                 }
             },
             Err(e) => {
-                println!("Cannot load client attributes");
+                println!("Cannot load client attributes: {}", e);
             }
         }
 
@@ -121,7 +121,7 @@ impl Client {
                     stream.write(&[commands.len() as u8]).unwrap();
 
                     for command in commands.iter() {
-                        //println!("Sending command: {:?}", command);
+                        println!("Sending command: {:?} = {:?}", command, command.to_bytes());
 
                         let data = command.to_bytes();
                         stream.write(&data).unwrap();
@@ -135,7 +135,7 @@ impl Client {
                 let mut received_data = [0u8];
 
                 *concurrent_inputs.lock().unwrap() = match stream.read(&mut received_data) {
-                    Ok(n) => received_data[0],
+                    Ok(_) => received_data[0],
                     Err(e) => {
                         if e.kind() != io::ErrorKind::WouldBlock {
                             println!("Client error: {}", e);
@@ -196,12 +196,12 @@ impl Client {
                     match serde_json::to_string(&ClientAttributes::new(self)) {
                         Ok(json_string) => match fs::write(client_filename(self.id), json_string) {
                             Err(e) => {
-                                println!("Cannot save client attributes");
+                                println!("Cannot save client attributes: {}", e);
                             }
                             _ => {}
                         },
                         Err(e) => {
-                            println!("Cannot serialize attributes");
+                            println!("Cannot serialize attributes: {}", e);
                         }
                     }
                 }

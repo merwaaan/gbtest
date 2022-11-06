@@ -1,3 +1,4 @@
+use crate::apps::display_image::DisplayImageApp;
 use crate::ServerCommand;
 use crate::{
     apps::{
@@ -36,7 +37,7 @@ impl Server {
             connection_thread_handle: Option::None,
             connection_thread_channel: Option::None,
             clients: Arc::new(Mutex::new(Vec::new())),
-            app: Box::new(BouncingBallsApp::new()),
+            app: Box::new(DisplayImageApp::new()),
         }
     }
 
@@ -85,6 +86,7 @@ impl Server {
                                 }
                                 Err(TryRecvError::Disconnected) => {
                                     println!("Error: sender disconnected, {}", e);
+                                    return;
                                 }
                                 _ => {}
                             }

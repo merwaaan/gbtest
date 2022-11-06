@@ -30,12 +30,12 @@ impl BouncingBallsApp {
     }
 }
 
-static ball_tile: [u8; 16] = [
+static BALL_TILE: [u8; 16] = [
     0x3Cu8, 0x3Cu8, 0x3Cu8, 0x66u8, 0xFFu8, 0xFFu8, 0xFFu8, 0xBDu8, //
     0xFFu8, 0xBDu8, 0xFFu8, 0xFFu8, 0x3Cu8, 0x66u8, 0x3Cu8, 0x3Cu8,
 ];
 
-static wall_tile: [u8; 16] = [
+static WALL_TILE: [u8; 16] = [
     0xFFu8, 0xFFu8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, //
     0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0xFFu8, 0xFFu8,
 ];
@@ -76,8 +76,8 @@ impl App for BouncingBallsApp {
 
                 // Load the tiles
 
-                client.buffer_command(ClientCommand::LoadTile(false, 0, ball_tile));
-                client.buffer_command(ClientCommand::LoadTile(true, 1, wall_tile));
+                client.buffer_command(ClientCommand::LoadTiles(false, 0, 1, BALL_TILE.to_vec()));
+                //client.buffer_command(ClientCommand::LoadTiles(true, 1, 1, wall_tile.to_vec()));
 
                 // Create the ball sprites
 
@@ -87,7 +87,7 @@ impl App for BouncingBallsApp {
 
                 // Create the walls in the background
 
-                client.buffer_command(ClientCommand::SetBackgroundTile(0, 0, 1));
+                //client.buffer_command(ClientCommand::SetBackgroundTiles(0, 0, 1, 1, vec![1]));
             }
         }
 

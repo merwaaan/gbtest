@@ -24,7 +24,7 @@ impl ShowInfoApp {
 }
 
 impl App for ShowInfoApp {
-    fn update(&mut self, dt: &Duration, clients: &mut Vec<Client>) {
+    fn update(&mut self, _dt: &Duration, clients: &mut Vec<Client>) {
         for client in clients {
             let mut needs_update = false;
 
