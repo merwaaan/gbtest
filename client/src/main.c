@@ -117,6 +117,12 @@ void command_load_tiles()
 
   for (int tile_index = 0; tile_index < tile_count; ++tile_index)
   {
+    // TEMP
+    LCDC_REG = LCDC_REG | LCDCF_BG8000;
+    /*if (tile_index > 30) {
+      LCDC_REG = LCDC_REG & ~LCDCF_BG8000;
+    }*/
+
     for (int i = 0; i < 16; ++i)
     {
       tiles_data[i] = receive();
@@ -141,11 +147,11 @@ void command_set_background_tiles()
   uint8_t tile_rows = receive();
   uint16_t tile_count = tile_columns * tile_rows;
 
-  uint16_t tiles_indices[32 * 32]; // TODO max tile data for the whole bg, ok? or use malloc?
+  uint8_t tiles_indices[20 * 18]; // TODO use malloc?
 
   for (int i = 0; i < tile_count; ++i)
   {
-    tiles_indices[i] = receive_word();
+    tiles_indices[i] = receive();
   }
 
   set_bkg_tiles(tile_x, tile_y, tile_columns, tile_rows, tiles_indices);

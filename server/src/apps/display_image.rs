@@ -125,8 +125,9 @@ fn fill_screen_with_image(client: &mut Client, image: &DynamicImage) {
         FilterType::Nearest,
     );
 
-    resized_image.save("test2.png").unwrap();
-    let mut tiles_data = [0u8; 32 * 32 * 16];
+    // Convert the image to tiles
+
+    let mut tiles_data = [0u8; 20 * 18 * 16];
 
     for screen_y in 0..client.screen().res.y {
         for screen_x in 0..client.screen().res.x {
@@ -152,7 +153,7 @@ fn fill_screen_with_image(client: &mut Client, image: &DynamicImage) {
             let tile_pixel_y = screen_y % 8;
             let tile_pixel_x = screen_x % 8;
 
-            let tile_row_offset = (tile_y * 32 + tile_x) * 16 + tile_pixel_y * 2;
+            let tile_row_offset = (tile_y * 20 + tile_x) * 16 + tile_pixel_y * 2;
 
             tiles_data[tile_row_offset] =
                 tiles_data[tile_row_offset] | (grayscale & 0b10) << (7 - tile_pixel_x);
@@ -162,20 +163,24 @@ fn fill_screen_with_image(client: &mut Client, image: &DynamicImage) {
         }
     }
 
+    let actual_tile_count: u8 = 128; // TODO cannot store whole bg of 20x18 for now!
+
     client.buffer_command(ClientCommand::LoadTiles(
         true,
         0,
-        32, //32 * 32,
-        tiles_data[0..32 * 16].to_vec(),
+        actual_tile_count as u16,
+        tiles_data[0..actual_tile_count as usize * 16].to_vec(),
     ));
 
-    let tiles_indices: Vec<u16> = (0..32/*32 * 32*/).collect();
+    // Place the tiles on the screen
+
+    let tiles_indices: Vec<u8> = (0..actual_tile_count).collect();
 
     client.buffer_command(ClientCommand::SetBackgroundTiles(
         0,
         0,
-        32,
-        1,
+        20,
+        18,
         tiles_indices,
     ));
 }

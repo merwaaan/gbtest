@@ -7,7 +7,7 @@ pub enum ClientCommand {
     DrawCircle(u8, u8, u8),
     PrintText(u8, u8, String),
     LoadTiles(bool, u16, u16, Vec<u8>),
-    SetBackgroundTiles(u8, u8, u8, u8, Vec<u16>),
+    SetBackgroundTiles(u8, u8, u8, u8, Vec<u8>),
     SetSpriteTile(u8, u8),
     MoveSprite(u8, u8, u8),
 }
@@ -48,8 +48,7 @@ impl ClientCommand {
                 let mut data = vec![7, *tile_x, *tile_y, *columns, *rows];
 
                 for tile_index in tile_indices.iter() {
-                    data.push(((*tile_index & 0xFF00) >> 8) as u8);
-                    data.push(*tile_index as u8);
+                    data.push(*tile_index);
                 }
 
                 data
