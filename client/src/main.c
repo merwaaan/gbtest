@@ -1,7 +1,14 @@
 #include <gb/gb.h>
 #include <gb/drawing.h>
+#include <gb/cgb.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#ifdef GAMEBOYCOLOR
+  #define SYSTEM_ID 1
+#else
+  #define SYSTEM_ID 0
+#endif
 
 #define COMM_IO_OFFSET 0x70
 
@@ -211,6 +218,8 @@ void main()
   DISPLAY_ON;
   SHOW_BKG;
   SHOW_SPRITES;
+
+  send(SYSTEM_ID);
 
   while (1)
   {

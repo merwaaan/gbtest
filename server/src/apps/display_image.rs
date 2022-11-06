@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
-use crate::client::Client;
+use crate::clients::client::Client;
 use crate::{apps::App, commands::ClientCommand};
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView};

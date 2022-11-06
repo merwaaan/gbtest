@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::apps::App;
-use crate::client::{Button, Client};
+use crate::clients::client::{Button, Client};
 use crate::commands::ClientCommand;
 
 struct ClientInfo {

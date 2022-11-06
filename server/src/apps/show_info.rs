@@ -4,7 +4,7 @@ use std::time::Duration;
 use parry2d::math::Point;
 
 use crate::apps::App;
-use crate::client::Client;
+use crate::clients::client::Client;
 use crate::commands::ClientCommand;
 
 struct Info {

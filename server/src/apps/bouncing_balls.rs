@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 use std::{ops::Add, time::Duration};
 
-use crate::client::Client;
+use crate::clients::client::Client;
 use crate::{apps::App, commands::ClientCommand};
 use parry2d::{
     bounding_volume::{BoundingVolume, AABB},

@@ -5,7 +5,7 @@ pub mod show_info;
 
 use std::time::Duration;
 
-use crate::client::Client;
+use crate::clients::client::Client;
 use crate::ServerCommand;
 
 pub trait App {

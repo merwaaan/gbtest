@@ -1,17 +1,20 @@
-use parry2d::bounding_volume::AABB;
-use parry2d::math::{Point, Vector};
 use serde::{Deserialize, Serialize};
 
+use crate::clients::gameboy::GameBoyDriver;
+use crate::clients::gameboycolor::GameBoyColorDriver;
+use crate::clients::screen::Screen;
 use crate::commands::ClientCommand;
 use crate::ServerCommand;
+use core::panic;
 use std::fs;
 use std::io::{self, Read};
-use std::ops::Add;
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 use std::{io::Write, net::TcpStream};
+
+use super::driver::Driver;
 
 pub enum Button {
     Start,
@@ -24,34 +27,10 @@ pub enum Button {
     Right,
 }
 
-pub struct Screen {
-    pub pos: Point<f32>,
-    pub size: Vector<f32>,
-    pub res: Vector<usize>,
-}
-
-impl Screen {
-    pub fn gameboy() -> Self {
-        Self {
-            pos: Point::new(0.0, 0.0),
-            size: Vector::new(4.8, 4.3), // TODO store as diagonal to avoid ratio inaccuracies?
-            res: Vector::new(160, 144),
-        }
-    }
-
-    pub fn bounding_box(&self) -> AABB {
-        AABB::new(self.pos, self.pos.add(self.size))
-    }
-
-    pub fn contains(&self, point: &Point<f32>) -> bool {
-        self.bounding_box().contains_local_point(point)
-    }
-}
-
 pub struct Client {
     id: u8,
 
-    screen: Screen,
+    driver: Box<dyn Driver + Send>,
 
     thread: JoinHandle<()>,
 
@@ -82,18 +61,40 @@ fn client_filename(id: u8) -> String {
 }
 
 impl Client {
-    pub fn new(mut stream: TcpStream) -> Self {
-        // Attribute an ID
-        let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+    pub fn from_stream(mut stream: TcpStream) -> Self {
+        // First, receive the system ID from the client
 
-        let mut screen = Screen::gameboy();
+        let mut received_data = [0u8];
+
+        let system_id = match stream.read(&mut received_data) {
+            Ok(_) => received_data[0],
+            Err(e) => {
+                if e.kind() != io::ErrorKind::WouldBlock {
+                    println!("Client error: {}", e);
+                }
+
+                0
+            }
+        };
+
+        let mut driver: Box<dyn Driver + Send> = match system_id {
+            0 => Box::new(GameBoyDriver::new()),
+            1 => Box::new(GameBoyColorDriver::new()),
+            _ => panic!("unknown system ID {system_id}"),
+        };
+
+        println!("{system_id}");
+
+        // Attribute a client ID
+
+        let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
 
         // Try to read saved attributes
         match fs::read_to_string(client_filename(id)) {
             Ok(json_string) => match serde_json::from_str::<ClientAttributes>(&json_string) {
                 Ok(attributes) => {
-                    screen.pos.x = attributes.pos.0;
-                    screen.pos.y = attributes.pos.1;
+                    driver.screen_mut().pos.x = attributes.pos.0;
+                    driver.screen_mut().pos.y = attributes.pos.1;
                 }
                 Err(e) => {
                     println!("Cannot parse attributes: {}", e);
@@ -151,7 +152,7 @@ impl Client {
 
         Self {
             id,
-            screen,
+            driver,
             thread,
             unstaged_commands: Vec::new(),
             staged_commands,
@@ -164,7 +165,7 @@ impl Client {
     }
 
     pub fn screen(&self) -> &Screen {
-        &self.screen
+        &self.driver.screen()
     }
 
     pub fn buffer_command(&mut self, command: ClientCommand) {
@@ -189,8 +190,8 @@ impl Client {
             ServerCommand::Pos { client_id, x, y } => {
                 if self.id == *client_id {
                     println!("client {}: pos to {} {}", self.id, x, y);
-                    self.screen.pos.x = *x;
-                    self.screen.pos.y = *y;
+                    self.driver.screen_mut().pos.x = *x;
+                    self.driver.screen_mut().pos.y = *y;
 
                     // Save
                     match serde_json::to_string(&ClientAttributes::new(self)) {

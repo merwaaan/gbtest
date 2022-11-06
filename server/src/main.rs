@@ -3,7 +3,7 @@ use std::{io, sync::mpsc, thread};
 use clap::Parser;
 
 mod apps;
-mod client;
+mod clients;
 mod commands;
 mod server;
 
