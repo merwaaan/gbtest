@@ -4,7 +4,7 @@ use crate::{
     apps::{
         bouncing_balls::BouncingBallsApp, fill_screens::FillScreensApp, show_info::ShowInfoApp, App,
     },
-    client::Client,
+    clients::client::Client,
     AppName,
 };
 use std::sync::mpsc::{Sender, TryRecvError};
@@ -76,7 +76,10 @@ impl Server {
                 match stream {
                     Ok(stream) => {
                         println!("New client: {}", stream.peer_addr().unwrap());
-                        concurrent_clients.lock().unwrap().push(Client::new(stream));
+                        concurrent_clients
+                            .lock()
+                            .unwrap()
+                            .push(Client::from_stream(stream));
                     }
                     Err(e) => {
                         if e.kind() == io::ErrorKind::WouldBlock {

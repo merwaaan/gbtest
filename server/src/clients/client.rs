@@ -66,16 +66,14 @@ impl Client {
 
         let mut received_data = [0u8];
 
+        stream.set_nonblocking(false).unwrap();
+
         let system_id = match stream.read(&mut received_data) {
             Ok(_) => received_data[0],
-            Err(e) => {
-                if e.kind() != io::ErrorKind::WouldBlock {
-                    println!("Client error: {}", e);
-                }
-
-                0
-            }
+            Err(e) => panic!("Client error: {e}"),
         };
+
+        stream.set_nonblocking(true).unwrap();
 
         let mut driver: Box<dyn Driver + Send> = match system_id {
             0 => Box::new(GameBoyDriver::new()),
