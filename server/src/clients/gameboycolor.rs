@@ -1,5 +1,6 @@
-use super::{driver::Driver, screen::Screen};
+use super::{client::CommandData, driver::Driver, screen::Screen};
 
+use image::DynamicImage;
 use parry2d::math::{Point, Vector};
 
 pub struct GameBoyColorDriver {

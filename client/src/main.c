@@ -1,5 +1,5 @@
-#include <gb/gb.h>
 #include <gb/drawing.h>
+#include <gb/gb.h>
 #include <gb/cgb.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +22,6 @@ void send(uint8_t value)
 uint8_t receive()
 {
     uint8_t value = _IO[COMM_IO_OFFSET];
-    //printf("received %d\n", value);
     return value;
 }
 
@@ -36,65 +35,14 @@ uint16_t receive_word()
 
 enum Command
 {
-  ClearScreen = 0,
-  ClearRect,
-  DrawPoint,
-  DrawLine,
-  DrawCircle,
-  PrintText,
+  DrawText = 0,
   LoadTiles,
   SetBackgroundTiles,
   SetSpriteTile,
   MoveSprite
 };
 
-void command_clear_screen()
-{
-  box(0, 0, 159, 143, M_FILL);
-}
-
-void command_clear_rect()
-{
-  uint8_t x = receive();
-  uint8_t y = receive();
-  uint8_t w = receive();
-  uint8_t h = receive();
-
-  color(WHITE, WHITE, SOLID);
-  box(x, y, x + w, x + h, M_FILL);
-}
-
-void command_draw_point()
-{
-  uint8_t x = receive();
-  uint8_t y = receive();
-
-  color(BLACK, WHITE, SOLID);
-  plot_point(x, y);
-}
-
-void command_draw_line()
-{
-  uint8_t x1 = receive();
-  uint8_t y1 = receive();
-  uint8_t x2 = receive();
-  uint8_t y2 = receive();
-
-  line(x1, y1, x2, y2);
-}
-
-void command_draw_circle()
-{
-  uint8_t x = receive();
-  uint8_t y = receive();
-  uint8_t r = receive();
-
-  color(BLACK, WHITE, SOLID);
-  //circle(x, y, r, M_FILL);
-  plot_point(x, y);
-}
-
-void command_print_text()
+void command_draw_text()
 {
   uint8_t x = receive() / 8; // units = pixel to tile
   uint8_t y = receive() / 8;
@@ -150,18 +98,21 @@ void command_set_background_tiles()
 {
   uint8_t tile_x = receive();
   uint8_t tile_y = receive();
-  uint8_t tile_columns = receive();
-  uint8_t tile_rows = receive();
-  uint16_t tile_count = tile_columns * tile_rows;
+  uint8_t tile_w = receive();
+  uint8_t tile_h = receive();
 
-  uint8_t tiles_indices[20 * 18]; // TODO use malloc?
+  //uint8_t is_attribute = receive();
+  uint16_t tile_count = tile_w * tile_h;
+
+  uint8_t tiles_indices[20 * 18]; // TODO Indices or attributes, depending on the selected mode // TODO use malloc?
 
   for (int i = 0; i < tile_count; ++i)
   {
     tiles_indices[i] = receive();
   }
 
-  set_bkg_tiles(tile_x, tile_y, tile_columns, tile_rows, tiles_indices);
+  //VBK_REG = is_attribute;
+  set_bkg_tiles(tile_x, tile_y, tile_w, tile_h, tiles_indices);
 }
 
 void command_set_sprite_tile() // TODO multi tiles
@@ -188,20 +139,17 @@ void send_inputs()
 
 void receive_commands()
 {
-  uint8_t command_count = receive();
+  uint16_t command_count = receive_word();
 
-  for (uint8_t i = 0; i < command_count; ++i)
+//disable_interrupts();
+
+  for (uint16_t i = 0; i < command_count; ++i)
   {
     uint8_t command_id = receive();
 
     switch (command_id)
     {
-      case ClearScreen: command_clear_screen(); break;
-      case ClearRect: command_clear_rect(); break;
-      case DrawPoint: command_draw_point(); break;
-      case DrawLine: command_draw_line(); break;
-      case DrawCircle: command_draw_circle(); break;
-      case PrintText: command_print_text(); break;
+      case DrawText: command_draw_text(); break;
       case LoadTiles: command_load_tiles(); break;
       case SetBackgroundTiles: command_set_background_tiles(); break;
       case SetSpriteTile: command_set_sprite_tile(); break;
@@ -209,9 +157,19 @@ void receive_commands()
 
       default:
         printf("unknown command id: %d\n", command_id);
+
+        wait_vbl_done();
+        return;
     }
   }
+
+//enable_interrupts();
 }
+
+const uint16_t palette[] =
+{
+  18, 24, 31, 0
+};
 
 void main()
 {
@@ -226,6 +184,8 @@ void main()
     send_inputs();
     receive_commands();
 
+  SHOW_SPRITES;
     wait_vbl_done();
+  SHOW_SPRITES;
   }
 }

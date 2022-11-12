@@ -5,7 +5,6 @@ use parry2d::math::Point;
 
 use crate::apps::App;
 use crate::clients::client::Client;
-use crate::commands::ClientCommand;
 
 struct Info {
     pos: Point<f32>,
@@ -53,17 +52,14 @@ impl App for ShowInfoApp {
             }
 
             if needs_update {
-                client.buffer_command(ClientCommand::ClearScreen);
-                client.buffer_command(ClientCommand::PrintText(
-                    0,
-                    0,
-                    format!(
-                        "ID: {} / Pos: {} {}",
-                        client.id(),
-                        client.screen().pos.x,
-                        client.screen().pos.y
-                    ),
-                ));
+                let text = format!(
+                    "ID: {} / Pos: {} {}",
+                    client.id(),
+                    client.screen().pos.x,
+                    client.screen().pos.y
+                );
+
+                client.draw_text(&text, 0, 0);
             }
         }
     }

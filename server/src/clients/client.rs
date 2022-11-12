@@ -1,9 +1,12 @@
+use image::DynamicImage;
+use log::info;
 use serde::{Deserialize, Serialize};
 
 use crate::clients::gameboy::GameBoyDriver;
 use crate::clients::gameboycolor::GameBoyColorDriver;
 use crate::clients::screen::Screen;
-use crate::commands::ClientCommand;
+use crate::engine::sprite::Sprite;
+use crate::engine::tile::Tile;
 use crate::ServerCommand;
 use core::panic;
 use std::fs;
@@ -27,6 +30,8 @@ pub enum Button {
     Right,
 }
 
+pub type CommandData = Vec<u8>;
+
 pub struct Client {
     id: u8,
 
@@ -34,8 +39,8 @@ pub struct Client {
 
     thread: JoinHandle<()>,
 
-    unstaged_commands: Vec<ClientCommand>,
-    staged_commands: Arc<Mutex<Vec<ClientCommand>>>,
+    unstaged_commands: Vec<CommandData>,
+    staged_commands: Arc<Mutex<Vec<CommandData>>>,
 
     // Bits: Start Select B A Down Up Left Right
     inputs: Arc<Mutex<u8>>,
@@ -114,16 +119,21 @@ impl Client {
                 {
                     // Send commands
 
-                    let mut commands: MutexGuard<Vec<ClientCommand>> =
+                    let mut commands: MutexGuard<Vec<CommandData>> =
                         concurrent_staged_commands.lock().unwrap();
 
-                    stream.write(&[commands.len() as u8]).unwrap();
+                    // First, send the command count
+
+                    assert!(commands.len() < 0x10000); // 16 bits max
+
+                    stream
+                        .write(&[((commands.len() & 0xFF00) >> 8) as u8, commands.len() as u8])
+                        .unwrap();
+
+                    // Then, the commands' data
 
                     for command in commands.iter() {
-                        println!("Sending command: {:?} = {:?}", command, command.to_bytes());
-
-                        let data = command.to_bytes();
-                        stream.write(&data).unwrap();
+                        stream.write(command).unwrap();
                     }
 
                     commands.clear();
@@ -166,16 +176,18 @@ impl Client {
         &self.driver.screen()
     }
 
-    pub fn buffer_command(&mut self, command: ClientCommand) {
-        self.unstaged_commands.push(command);
+    fn buffer_commands(&mut self, commands: Vec<CommandData>) {
+        for command in commands {
+            self.unstaged_commands.push(command);
+        }
     }
 
     pub fn send_commands(&mut self) {
-        let mut concurrent_staged_commands: MutexGuard<Vec<ClientCommand>> =
+        let mut concurrent_staged_commands: MutexGuard<Vec<CommandData>> =
             self.staged_commands.lock().unwrap();
 
         for unstaged_command in self.unstaged_commands.iter() {
-            //println!("Staging command: {:?}", unstaged_command);
+            info!("Sending command {:?}", unstaged_command);
 
             concurrent_staged_commands.push(unstaged_command.clone());
         }
@@ -223,5 +235,27 @@ impl Client {
             Button::Left => (*concurrent_inputs & 0x02) != 0,
             Button::Right => (*concurrent_inputs & 0x01) != 0,
         }
+    }
+
+    //
+
+    pub fn draw_text(&mut self, text: &str, x: u32, y: u32) {
+        let commands = self.driver.draw_text(text, x, y);
+        self.buffer_commands(commands);
+    }
+
+    pub fn draw_tile(&mut self, tile: &Tile, x: u8, y: u8) {
+        let commands = self.driver.draw_tile(tile, x, y);
+        self.buffer_commands(commands);
+    }
+
+    pub fn fill_screen_with_image(&mut self, image: &DynamicImage) {
+        let commands = self.driver.draw_image(image);
+        self.buffer_commands(commands);
+    }
+
+    pub fn draw_sprite(&mut self, id: usize, sprite: &Sprite, x: u8, y: u8) {
+        let commands = self.driver.draw_sprite(id, sprite, x, y);
+        self.buffer_commands(commands);
     }
 }

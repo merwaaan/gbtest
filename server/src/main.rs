@@ -5,7 +5,11 @@ use clap::Parser;
 mod apps;
 mod clients;
 mod commands;
+mod engine;
 mod server;
+
+#[macro_use]
+extern crate lazy_static;
 
 #[derive(clap::Parser)]
 struct Args {
@@ -29,6 +33,8 @@ pub enum AppName {
 }
 
 fn main() {
+    env_logger::init();
+
     // Server thread
 
     let (sender, receiver) = mpsc::channel::<ServerCommand>();

@@ -37,7 +37,7 @@ impl Server {
             connection_thread_handle: Option::None,
             connection_thread_channel: Option::None,
             clients: Arc::new(Mutex::new(Vec::new())),
-            app: Box::new(DisplayImageApp::new()),
+            app: Box::new(BouncingBallsApp::new()),
         }
     }
 
@@ -51,9 +51,11 @@ impl Server {
         let now = Instant::now();
         let since_last_update = now - self.last_update_time;
 
-        let to_next_update = update_interval - since_last_update;
+        if update_interval > since_last_update {
+            let to_next_update = update_interval - since_last_update;
 
-        thread::sleep(to_next_update);
+            thread::sleep(to_next_update);
+        }
     }
 
     pub fn start(&mut self, address: &str) {

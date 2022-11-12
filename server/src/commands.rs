@@ -1,10 +1,5 @@
-#[derive(Debug, Clone)]
+/*#[derive(Debug, Clone)]
 pub enum ClientCommand {
-    ClearScreen,
-    ClearRect(u8, u8, u8, u8),
-    DrawPoint(u8, u8),
-    DrawLine(u8, u8, u8, u8),
-    DrawCircle(u8, u8, u8),
     PrintText(u8, u8, String),
     LoadTiles(bool, u16, u16, Vec<u8>),
     SetBackgroundTiles(u8, u8, u8, u8, Vec<u8>),
@@ -62,3 +57,4 @@ impl ClientCommand {
         }
     }
 }
+*/

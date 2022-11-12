@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 use std::time::Duration;
 
+use crate::apps::App;
 use crate::clients::client::Client;
-use crate::{apps::App, commands::ClientCommand};
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImageView};
 use parry2d::bounding_volume::{BoundingVolume, AABB};
@@ -56,6 +56,13 @@ impl App for DisplayImageApp {
                 let screen_y_normalized =
                     (client.screen().pos.y - self.area.mins.y) / self.area.extents().y;
 
+                println!(
+                    "{screen_y_normalized} {} {} {}",
+                    client.screen().pos.y,
+                    self.area.mins.y,
+                    self.area.extents().y
+                );
+
                 let screen_w_normalized = client.screen().size.x / self.area.extents().x;
                 let screen_h_normalized = client.screen().size.y / self.area.extents().y;
 
@@ -93,6 +100,7 @@ impl App for DisplayImageApp {
                     screen_h_normalized
                 };
 
+                println!("{image_y_normalized} {screen_y_normalized} {relative_ratio}");
                 //
 
                 let image_x = (image_x_normalized * self.image.dimensions().0 as f32) as u32;
@@ -112,14 +120,14 @@ impl App for DisplayImageApp {
                     image_h
                 );
 
-                fill_screen_with_image(client, &cropped_image);
+                client.fill_screen_with_image(&cropped_image);
             }
         }
     }
 }
 
 fn fill_screen_with_image(client: &mut Client, image: &DynamicImage) {
-    let resized_image = image.resize(
+    /*let resized_image = image.resize(
         client.screen().res.x as u32,
         client.screen().res.y as u32,
         FilterType::Nearest,
@@ -140,10 +148,6 @@ fn fill_screen_with_image(client: &mut Client, image: &DynamicImage) {
                 + 0.0722 * (pixel[2] as f32 / 255.0);
 
             let grayscale = ((1.0 - luminance) * 4.0).clamp(0.0, 3.0) as u8; // TODO rounding errors, sometimes = 4
-
-            if screen_x < 8 && screen_y < 8 {
-                println!("{screen_x} {screen_y} {:?} {luminance} {grayscale} ", pixel);
-            }
 
             // To GB tile format
 
@@ -182,5 +186,5 @@ fn fill_screen_with_image(client: &mut Client, image: &DynamicImage) {
         20,
         18,
         tiles_indices,
-    ));
+    ));*/
 }

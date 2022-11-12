@@ -1,21 +1,22 @@
 use std::collections::HashSet;
+use std::f32::INFINITY;
 use std::{ops::Add, time::Duration};
 
+use crate::apps::App;
 use crate::clients::client::Client;
-use crate::{apps::App, commands::ClientCommand};
-use parry2d::{
-    bounding_volume::{BoundingVolume, AABB},
-    math::{Point, Vector},
-};
+use crate::engine::color::{BLUE, RED, WHITE};
+use crate::engine::tile::Tile;
+use crate::engine::world::World;
+use parry2d::math::{Point, Vector};
 
 struct Ball {
-    pos: Point<f32>,
+    sprite_id: usize,
     vel: Vector<f32>,
     // TODO radius?
 }
 
 pub struct BouncingBallsApp {
-    area: AABB,
+    world: World,
     balls: Vec<Ball>,
     known_client_ids: HashSet<u8>,
 }
@@ -23,122 +24,76 @@ pub struct BouncingBallsApp {
 impl BouncingBallsApp {
     pub fn new() -> Self {
         Self {
-            area: AABB::new_invalid(),
+            world: World::new(),
             balls: Vec::new(),
             known_client_ids: HashSet::new(),
         }
     }
 }
 
-static BALL_TILE: [u8; 16] = [
-    0x3Cu8, 0x3Cu8, 0x3Cu8, 0x66u8, 0xFFu8, 0xFFu8, 0xFFu8, 0xBDu8, //
-    0xFFu8, 0xBDu8, 0xFFu8, 0xFFu8, 0x3Cu8, 0x66u8, 0x3Cu8, 0x3Cu8,
-];
-
-static WALL_TILE: [u8; 16] = [
-    0xFFu8, 0xFFu8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, //
-    0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0x81u8, 0xFFu8, 0xFFu8,
-];
+lazy_static! {
+    static ref BALL_TILE: Tile = Tile::from_pixels(
+        8,
+        8,
+        vec![
+            WHITE, WHITE, WHITE, RED,  RED,  WHITE, WHITE, WHITE, //
+            WHITE, WHITE, RED,   BLUE, BLUE, RED,   WHITE, WHITE, //
+            WHITE, RED,   BLUE,  BLUE, BLUE, BLUE,  RED,   WHITE, //
+            RED,   BLUE,  BLUE,  BLUE, BLUE, BLUE,  BLUE,  RED, //
+            RED,   BLUE,  BLUE,  BLUE, BLUE, BLUE,  BLUE,  RED, //
+            WHITE, RED,   BLUE,  BLUE, BLUE, BLUE,  RED,   WHITE, //
+            WHITE, WHITE, RED,   BLUE, BLUE, RED,   WHITE, WHITE, //
+            WHITE, WHITE, WHITE, RED,  RED,  WHITE, WHITE, WHITE
+            ]
+    );
+}
 
 impl App for BouncingBallsApp {
     fn update(&mut self, dt: &Duration, clients: &mut Vec<Client>) {
-        // Compute the current bounding box
+        let area = self.world.fit_client_screens(clients).clone();
+        // TODO correct ball pos when area changes
 
-        let mut new_aabb = AABB::new_invalid();
+        // Spawn the first ball
+        // TODO more on input?
 
-        for client in clients.iter_mut() {
-            new_aabb.merge(&client.screen().bounding_box());
-        }
-
-        if new_aabb != self.area {
-            self.area = new_aabb;
-
-            // TODO correct ball pos
-        }
-
-        // TEMP Spawn a ball
-        // TODO on input?
-
-        if self.balls.is_empty() && self.area.volume() > 0.0 {
+        if self.balls.is_empty() && area.volume() != INFINITY {
             self.balls.push(Ball {
-                pos: self.area.center(),
+                sprite_id: self.world.create_sprite(&BALL_TILE),
                 vel: Vector::new(0.1, 0.1),
             });
-
-            // TODO create sprites for clients
-        }
-
-        // Handle new clients
-
-        for client in clients.iter_mut() {
-            if !self.known_client_ids.contains(&client.id()) {
-                self.known_client_ids.insert(client.id());
-
-                // Load the tiles
-
-                client.buffer_command(ClientCommand::LoadTiles(false, 0, 1, BALL_TILE.to_vec()));
-                //client.buffer_command(ClientCommand::LoadTiles(true, 1, 1, wall_tile.to_vec()));
-
-                // Create the ball sprites
-
-                for ball_index in 0..self.balls.len() {
-                    client.buffer_command(ClientCommand::SetSpriteTile(ball_index as u8, 0));
-                }
-
-                // Create the walls in the background
-
-                //client.buffer_command(ClientCommand::SetBackgroundTiles(0, 0, 1, 1, vec![1]));
-            }
         }
 
         // Move the balls
+        // TODO dt
 
         for ball in &mut self.balls {
-            ball.pos = ball.pos.add(ball.vel);
+            let mut pos = self.world.get_sprite(ball.sprite_id).pos;
+
+            pos = pos.add(ball.vel);
 
             // Bounce
+            // TODO play sound on client containing ball
 
-            if ball.pos.x < self.area.mins.x {
-                ball.pos.x = self.area.mins.x;
+            if pos.x < area.mins.x {
+                pos.x = area.mins.x;
                 ball.vel.x *= -1.0;
             }
-            if ball.pos.x > self.area.maxs.x {
-                ball.pos.x = self.area.maxs.x;
+            if pos.x > area.maxs.x {
+                pos.x = area.maxs.x;
                 ball.vel.x *= -1.0;
             }
-            if ball.pos.y < self.area.mins.y {
-                ball.pos.y = self.area.mins.y;
+            if pos.y < area.mins.y {
+                pos.y = area.mins.y;
                 ball.vel.y *= -1.0;
             }
-            if ball.pos.y > self.area.maxs.y {
-                ball.pos.y = self.area.maxs.y;
+            if pos.y > area.maxs.y {
+                pos.y = area.maxs.y;
                 ball.vel.y *= -1.0;
             }
+
+            self.world.move_sprite(ball.sprite_id, pos.x, pos.y);
         }
 
-        // Update the sprites positions
-
-        for client in clients.iter_mut() {
-            for (ball_index, ball) in self.balls.iter().enumerate() {
-                if client.screen().contains(&ball.pos) {
-                    let screen_pos = to_client_space(client, &ball.pos);
-
-                    client.buffer_command(ClientCommand::MoveSprite(
-                        ball_index as u8,
-                        screen_pos.x,
-                        screen_pos.y,
-                    ));
-                }
-            }
-        }
+        self.world.sync_clients(clients);
     }
-}
-
-fn to_client_space(client: &Client, world_pos: &Point<f32>) -> Point<u8> {
-    Point::new(
-        ((world_pos.x - client.screen().pos.x) / client.screen().size.x
-            * (client.screen().res.x as f32)) as u8,
-        ((world_pos.y - client.screen().pos.y) / client.screen().size.y
-            * (client.screen().res.y as f32)) as u8,
-    )
 }
